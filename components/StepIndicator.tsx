@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 
 interface StepIndicatorProps {
   currentStep: number;
+  isDarkMode: boolean;
 }
 
 const steps = [
@@ -13,7 +14,7 @@ const steps = [
   { title: "Export" },
 ];
 
-export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => {
+export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, isDarkMode }) => {
   // Map internal app states to visual steps
   let activeStepIndex = 0;
   if (currentStep >= 6) activeStepIndex = 4;      // Export
@@ -24,34 +25,41 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
 
   return (
     <nav aria-label="Progress" className="mb-8">
-      <ol role="list" className="divide-y divide-gray-300 rounded-lg border border-gray-300 md:flex md:divide-y-0 bg-white shadow-sm">
+      <ol role="list" className="divide-y divide-gray-300 dark:divide-gray-700 rounded-lg border border-gray-300 dark:border-gray-700 md:flex md:divide-y-0 bg-white dark:bg-slate-900 shadow-sm transition-colors duration-300">
         {steps.map((step, stepIdx) => {
           const isComplete = activeStepIndex > stepIdx;
           const isCurrent = activeStepIndex === stepIdx;
           const isLast = stepIdx === steps.length - 1;
 
           // Determine styles based on state
-          let bgClass = "bg-white";
-          let textClass = "text-gray-500";
-          let iconBorder = "border-gray-300";
-          let iconText = "text-gray-500";
+          let bgClass = "bg-white dark:bg-slate-900";
+          let textClass = "text-gray-500 dark:text-gray-400";
+          let iconBorder = "border-gray-300 dark:border-gray-600";
+          let iconText = "text-gray-500 dark:text-gray-400";
           
           if (isComplete) {
             bgClass = "bg-indigo-600";
             textClass = "text-white";
           } else if (isCurrent) {
-            bgClass = "bg-indigo-50";
-            textClass = "text-indigo-700";
-            iconBorder = "border-indigo-600";
-            iconText = "text-indigo-600";
+            bgClass = "bg-indigo-50 dark:bg-indigo-950";
+            textClass = "text-indigo-700 dark:text-indigo-300";
+            iconBorder = "border-indigo-600 dark:border-indigo-400";
+            iconText = "text-indigo-600 dark:text-indigo-400";
           } else {
              // Default pending state
-             textClass = "text-gray-500 group-hover:text-gray-900";
-             iconBorder = "border-gray-300 group-hover:border-gray-400";
+             textClass = "text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200";
+             iconBorder = "border-gray-300 dark:border-gray-600 group-hover:border-gray-400 dark:group-hover:border-gray-500";
           }
 
-          // Dynamic fill color for the arrow SVG
-          const arrowFillColor = isComplete ? '#4f46e5' : isCurrent ? '#eef2ff' : '#ffffff';
+          // Dynamic fill color for the arrow SVG based on Dark Mode
+          let arrowFillColor;
+          if (isComplete) {
+             arrowFillColor = '#4f46e5'; // Indigo 600
+          } else if (isCurrent) {
+             arrowFillColor = isDarkMode ? '#1e1b4b' : '#eef2ff'; // Indigo 950 : Indigo 50
+          } else {
+             arrowFillColor = isDarkMode ? '#0f172a' : '#ffffff'; // Slate 900 : White
+          }
 
           return (
             <li 
@@ -64,7 +72,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
                 ${bgClass}
                 ${stepIdx === 0 ? 'rounded-l-lg' : ''} 
                 ${isLast ? 'rounded-r-lg' : ''}
-                transition-colors duration-200 ease-in-out
+                transition-colors duration-300 ease-in-out
               `}>
                 <span className="flex items-center px-6 py-4 text-sm font-medium">
                   {isComplete ? (
@@ -73,7 +81,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
                     </span>
                   ) : (
                     <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 ${iconBorder} transition-colors`}>
-                      <span className={`font-bold ${isCurrent ? iconText : 'text-gray-500 group-hover:text-gray-900'}`}>{stepIdx + 1}</span>
+                      <span className={`font-bold ${isCurrent ? iconText : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200'}`}>{stepIdx + 1}</span>
                     </span>
                   )}
                   <span className={`ml-4 text-sm font-medium ${textClass} transition-colors`}>{step.title}</span>
@@ -96,7 +104,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => 
                       d="M0 -2L20 40L0 82"
                       vectorEffect="non-scaling-stroke"
                       stroke="current"
-                      className="stroke-gray-300" 
+                      className="stroke-gray-300 dark:stroke-gray-700 transition-colors duration-300" 
                       strokeWidth={1}
                       fill={arrowFillColor} // Fill the triangle with the current step's background color
                     />
