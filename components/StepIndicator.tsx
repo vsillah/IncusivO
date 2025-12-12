@@ -6,74 +6,103 @@ interface StepIndicatorProps {
 }
 
 const steps = [
-  { title: "Upload Reference", description: "Provide inclusive content" },
-  { title: "Analyze DNA", description: "Extract inclusive traits" },
-  { title: "Upload Target", description: "Content to rewrite" },
-  { title: "Review", description: "Compare changes" },
-  { title: "Export", description: "Download documents" },
+  { title: "Reference" },
+  { title: "Analyze" },
+  { title: "Target" },
+  { title: "Review" },
+  { title: "Export" },
 ];
 
 export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep }) => {
-  // Map internal app states to visual steps (0-4)
-  // AppStep: UPLOAD_REF(0), ANALYZING(1), REVIEW(2), UPLOAD_TARGET(3), REWRITING(4), RESULT(5), EXPORT(6)
-  
+  // Map internal app states to visual steps
   let activeStepIndex = 0;
   if (currentStep >= 6) activeStepIndex = 4;      // Export
   else if (currentStep >= 5) activeStepIndex = 3; // Result
-  else if (currentStep >= 3) activeStepIndex = 2; // Upload Target (Review Analysis is skipped/merged visually or considered done)
+  else if (currentStep >= 3) activeStepIndex = 2; // Upload Target
   else if (currentStep >= 2) activeStepIndex = 1; // Analyze/Review
   else activeStepIndex = 0;                       // Upload Ref
 
   return (
-    <nav aria-label="Progress" className="mb-12">
-      <ol role="list" className="overflow-hidden rounded-md lg:flex lg:rounded-none lg:border-l lg:border-r lg:border-gray-200">
+    <nav aria-label="Progress" className="mb-8">
+      <ol role="list" className="divide-y divide-gray-300 rounded-lg border border-gray-300 md:flex md:divide-y-0 bg-white shadow-sm">
         {steps.map((step, stepIdx) => {
           const isComplete = activeStepIndex > stepIdx;
           const isCurrent = activeStepIndex === stepIdx;
+          const isLast = stepIdx === steps.length - 1;
+
+          // Determine styles based on state
+          let bgClass = "bg-white";
+          let textClass = "text-gray-500";
+          let iconBorder = "border-gray-300";
+          let iconText = "text-gray-500";
+          
+          if (isComplete) {
+            bgClass = "bg-indigo-600";
+            textClass = "text-white";
+          } else if (isCurrent) {
+            bgClass = "bg-indigo-50";
+            textClass = "text-indigo-700";
+            iconBorder = "border-indigo-600";
+            iconText = "text-indigo-600";
+          } else {
+             // Default pending state
+             textClass = "text-gray-500 group-hover:text-gray-900";
+             iconBorder = "border-gray-300 group-hover:border-gray-400";
+          }
+
+          // Dynamic fill color for the arrow SVG
+          const arrowFillColor = isComplete ? '#4f46e5' : isCurrent ? '#eef2ff' : '#ffffff';
 
           return (
-            <li key={step.title} className="relative overflow-hidden lg:flex-1">
-              <div
-                className={`
-                  border-b border-gray-200 overflow-hidden lg:border-0
-                  ${stepIdx === 0 ? 'rounded-t-md border-t-0' : ''}
-                  ${stepIdx === steps.length - 1 ? 'rounded-b-md border-b-0' : ''}
-                `}
-              >
-                <div className="group">
-                  <span
-                    className={`
-                      absolute left-0 top-0 h-full w-1 bg-transparent group-hover:bg-gray-200 lg:bottom-0 lg:top-auto lg:h-1 lg:w-full
-                      ${isCurrent ? 'bg-indigo-600' : ''}
-                      ${isComplete ? 'bg-indigo-600' : ''}
-                    `}
-                    aria-hidden="true"
-                  />
-                  <span className={`px-6 py-5 flex items-start text-sm font-medium ${isCurrent ? 'lg:pl-9' : ''}`}>
-                    <span className="flex-shrink-0">
-                      {isComplete ? (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600">
-                          <Check className="h-6 w-6 text-white" aria-hidden="true" />
-                        </span>
-                      ) : isCurrent ? (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-indigo-600">{stepIdx + 1}</span>
-                        </span>
-                      ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-300">
-                          <span className="text-gray-500">{stepIdx + 1}</span>
-                        </span>
-                      )}
+            <li 
+              key={step.title} 
+              className={`relative md:flex md:flex-1`}
+              style={{ zIndex: steps.length - stepIdx }} // Stack earlier steps on top of later ones
+            >
+              <div className={`
+                group flex items-center w-full
+                ${bgClass}
+                ${stepIdx === 0 ? 'rounded-l-lg' : ''} 
+                ${isLast ? 'rounded-r-lg' : ''}
+                transition-colors duration-200 ease-in-out
+              `}>
+                <span className="flex items-center px-6 py-4 text-sm font-medium">
+                  {isComplete ? (
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-800 border-2 border-indigo-800 transition-colors">
+                      <Check className="h-5 w-5 text-white" aria-hidden="true" />
                     </span>
-                    <span className="ml-4 mt-0.5 flex min-w-0 flex-col">
-                      <span className={`text-sm font-medium ${isCurrent ? 'text-indigo-600' : 'text-gray-500'}`}>
-                        {step.title}
-                      </span>
-                      <span className="text-sm text-gray-500">{step.description}</span>
+                  ) : (
+                    <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 ${iconBorder} transition-colors`}>
+                      <span className={`font-bold ${isCurrent ? iconText : 'text-gray-500 group-hover:text-gray-900'}`}>{stepIdx + 1}</span>
                     </span>
-                  </span>
-                </div>
+                  )}
+                  <span className={`ml-4 text-sm font-medium ${textClass} transition-colors`}>{step.title}</span>
+                </span>
               </div>
+
+              {!isLast && (
+                <div 
+                  className="hidden md:block absolute top-0 right-0 h-full w-5 pointer-events-none" 
+                  aria-hidden="true"
+                  style={{ right: '-12px' }} // Position it hanging off the right edge
+                >
+                  <svg
+                    className="h-full w-full"
+                    viewBox="0 0 22 80"
+                    fill="none"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d="M0 -2L20 40L0 82"
+                      vectorEffect="non-scaling-stroke"
+                      stroke="current"
+                      className="stroke-gray-300" 
+                      strokeWidth={1}
+                      fill={arrowFillColor} // Fill the triangle with the current step's background color
+                    />
+                  </svg>
+                </div>
+              )}
             </li>
           );
         })}
