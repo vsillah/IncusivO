@@ -53,6 +53,7 @@ export interface ContentChange {
   rewrittenSnippet: string;
   concept: string;
   explanation: string;
+  status: 'pending' | 'accepted' | 'rejected';
 }
 
 export interface RewriteResult {

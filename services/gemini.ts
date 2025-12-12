@@ -246,7 +246,8 @@ export const rewriteContent = async (
     // Add client-side IDs to changes for React keys
     result.changes = result.changes.map((c: any, index: number) => ({
       ...c,
-      id: `change-${index}`
+      id: `change-${index}`,
+      status: 'pending' // Initialize as pending
     }));
 
     return result as RewriteResult;

@@ -22,7 +22,11 @@ import {
   Sun,
   Dna,
   Fingerprint,
-  PencilRuler
+  PencilRuler,
+  X,
+  ThumbsUp,
+  ThumbsDown,
+  Circle
 } from 'lucide-react';
 import { AppStep, DocumentState, FileContent, ContentChange, ReferenceHighlight } from './types';
 import { analyzeInclusivity, rewriteContent } from './services/gemini';
@@ -107,6 +111,68 @@ const App: React.FC = () => {
     setSelectedChangeId(null);
     setSelectedConcept(null);
     setShowSystemInstruction(false);
+  };
+
+  const advanceToNext = (currentId: string, concept: string) => {
+    if (!docState.result) return;
+    const conceptChanges = docState.result.changes.filter(c => c.concept === concept);
+    const currentIndex = conceptChanges.findIndex(c => c.id === currentId);
+    
+    // Logic: Find the next pending item, or just next item?
+    // User asked to "toggle through the next instance".
+    if (currentIndex !== -1 && currentIndex < conceptChanges.length - 1) {
+      setSelectedChangeId(conceptChanges[currentIndex + 1].id);
+    } else if (currentIndex === conceptChanges.length - 1) {
+       // Loop back to start for convenience
+       setSelectedChangeId(conceptChanges[0].id);
+    }
+  };
+
+  const handleAcceptChange = (changeId: string) => {
+    if (!docState.result) return;
+    const change = docState.result.changes.find(c => c.id === changeId);
+    if (!change) return;
+
+    setDocState(prev => {
+      if (!prev.result) return prev;
+      return {
+        ...prev,
+        result: {
+          ...prev.result,
+          changes: prev.result.changes.map(c => 
+            c.id === changeId ? { ...c, status: 'accepted' } : c
+          )
+        }
+      };
+    });
+    
+    advanceToNext(changeId, change.concept);
+  };
+
+  const handleRejectChange = (changeId: string) => {
+    if (!docState.result) return;
+    const change = docState.result.changes.find(c => c.id === changeId);
+    if (!change) return;
+
+    setDocState(prev => {
+      if (!prev.result) return prev;
+      
+      // When rejected, revert the text in the rewritten document
+      const newText = prev.result.rewrittenText.replace(change.rewrittenSnippet, change.originalSnippet);
+      
+      return {
+        ...prev,
+        result: {
+          ...prev.result,
+          rewrittenText: newText,
+          changes: prev.result.changes.map(c => 
+            c.id === changeId ? { ...c, status: 'rejected' } : c
+          )
+        }
+      };
+    });
+    
+    advanceToNext(changeId, change.concept);
   };
 
   // Auto-scroll logic
@@ -294,7 +360,7 @@ const App: React.FC = () => {
   // Generic highlighter helper
   const renderHighlightedText = (
     text: string, 
-    items: { id: string, snippet: string, concept: string, explanation: string }[]
+    items: { id: string, snippet: string, concept: string, explanation: string, status?: 'pending' | 'accepted' | 'rejected' }[]
   ) => {
     if (!text) return null;
     const activeItems = selectedConcept 
@@ -323,6 +389,15 @@ const App: React.FC = () => {
           const after = part.substring(index + snippet.length);
           const isSelected = selectedChangeId === item.id;
           
+          let highlightClass = `${colors.bg} ${colors.text} ${colors.hover} opacity-90`;
+          
+          // Style adjustments based on status
+          if (item.status === 'accepted') {
+             highlightClass = "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 decoration-green-500 underline-offset-2";
+          } else if (item.status === 'rejected') {
+             highlightClass = "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 line-through decoration-red-500 opacity-60";
+          }
+
           if (before) newParts.push(before);
           newParts.push(
             <span 
@@ -336,8 +411,8 @@ const App: React.FC = () => {
               className={`
                 cursor-pointer transition-all duration-200 rounded px-0.5
                 ${isSelected 
-                  ? `${colors.bg} ${colors.text} ring-2 ${colors.ring} font-semibold z-10 relative shadow-sm` 
-                  : `${colors.bg} ${colors.text} ${colors.hover} opacity-90 hover:opacity-100 hover:shadow-sm`
+                  ? `ring-2 ${colors.ring} font-semibold z-10 relative shadow-sm ${item.status === 'rejected' ? 'bg-red-200 dark:bg-red-900/60' : item.status === 'accepted' ? 'bg-green-200 dark:bg-green-900/60' : `${colors.bg} ${colors.text}`}` 
+                  : `${highlightClass} hover:opacity-100 hover:shadow-sm`
                 }
               `}
               title={`${item.concept}: ${item.explanation}`}
@@ -385,11 +460,13 @@ const App: React.FC = () => {
               {activeConcepts.map(concept => {
                   const colors = conceptColorMap[concept.name];
                   const isSelected = selectedConcept === concept.name;
-                  const count = step === AppStep.RESULT 
-                    ? docState.result?.changes.filter(c => c.concept === concept.name).length || 0
-                    : docState.analysis?.highlights.filter(h => h.characteristic === concept.name).length || 0;
                   
+                  // Calculate status counts
                   const conceptHighlights = getConceptHighlights(concept.name);
+                  const pendingCount = step === AppStep.RESULT ? conceptHighlights.filter((h: any) => h.status === 'pending').length : conceptHighlights.length;
+                  const acceptedCount = step === AppStep.RESULT ? conceptHighlights.filter((h: any) => h.status === 'accepted').length : 0;
+                  const rejectedCount = step === AppStep.RESULT ? conceptHighlights.filter((h: any) => h.status === 'rejected').length : 0;
+                  
                   const currentIndex = selectedChangeId 
                     ? conceptHighlights.findIndex(h => h.id === selectedChangeId) 
                     : -1;
@@ -422,9 +499,29 @@ const App: React.FC = () => {
                           <span className={`w-3 h-3 rounded-full mr-3 ${colors.bg.replace('bg-', 'bg-').replace('100', '500').split(' ')[0]}`}></span>
                           {concept.name}
                         </div>
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${isSelected ? 'bg-white/50' : 'bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`}>
-                          {count}
-                        </span>
+                        {step === AppStep.RESULT ? (
+                          <div className="flex items-center gap-1">
+                             {acceptedCount > 0 && (
+                               <span className="flex items-center bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 px-1.5 py-0.5 rounded text-[10px] font-bold" title="Accepted">
+                                 <Check className="w-3 h-3 mr-0.5" />{acceptedCount}
+                               </span>
+                             )}
+                             {rejectedCount > 0 && (
+                               <span className="flex items-center bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 px-1.5 py-0.5 rounded text-[10px] font-bold" title="Rejected">
+                                 <X className="w-3 h-3 mr-0.5" />{rejectedCount}
+                               </span>
+                             )}
+                             {pendingCount > 0 && (
+                               <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${isSelected ? 'bg-white/50' : 'bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`}>
+                                 {pendingCount}
+                               </span>
+                             )}
+                          </div>
+                        ) : (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${isSelected ? 'bg-white/50' : 'bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`}>
+                            {conceptHighlights.length}
+                          </span>
+                        )}
                       </button>
                       
                       {/* Drawer / Expansion Panel */}
@@ -830,7 +927,8 @@ const App: React.FC = () => {
                           id: c.id,
                           snippet: c.originalSnippet,
                           concept: c.concept,
-                          explanation: c.explanation
+                          explanation: c.explanation,
+                          status: c.status
                         }))
                       )}
                     </div>
@@ -861,9 +959,10 @@ const App: React.FC = () => {
                         docState.result.rewrittenText, 
                         docState.result.changes.map(c => ({
                           id: c.id,
-                          snippet: c.rewrittenSnippet,
+                          snippet: c.status === 'rejected' ? c.originalSnippet : c.rewrittenSnippet, // Use original snippet if rejected to match reverted text
                           concept: c.concept,
-                          explanation: c.explanation
+                          explanation: c.explanation,
+                          status: c.status
                         }))
                       )}
                     </div>
@@ -884,6 +983,8 @@ const App: React.FC = () => {
                               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${colors.badge}`}>
                                 {change.concept}
                               </span>
+                              {change.status === 'accepted' && <span className="text-[10px] font-bold text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded flex items-center"><Check className="w-3 h-3 mr-1"/>ACCEPTED</span>}
+                              {change.status === 'rejected' && <span className="text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded flex items-center"><X className="w-3 h-3 mr-1"/>REJECTED</span>}
                             </div>
                             
                             <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
@@ -893,7 +994,7 @@ const App: React.FC = () => {
                               </div>
                               <div className="p-2 bg-green-50/50 dark:bg-green-900/30 border border-green-100 dark:border-green-900/50 rounded">
                                 <span className="text-[10px] text-green-400 dark:text-green-300 font-bold block mb-1">AFTER</span>
-                                <p className="text-slate-700 dark:text-slate-300">"{change.rewrittenSnippet}"</p>
+                                <p className={`text-slate-700 dark:text-slate-300 ${change.status === 'rejected' ? 'line-through opacity-50' : ''}`}>"{change.rewrittenSnippet}"</p>
                               </div>
                             </div>
 
@@ -901,6 +1002,23 @@ const App: React.FC = () => {
                               <span className="font-bold text-indigo-600 dark:text-indigo-400 block mb-1">Reasoning:</span>
                               {change.explanation}
                             </div>
+
+                            {/* Accept / Reject Buttons */}
+                            <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                <button 
+                                  onClick={() => handleRejectChange(change.id)}
+                                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${change.status === 'rejected' ? 'bg-red-100 text-red-800 ring-2 ring-red-500' : 'bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300'}`}
+                                >
+                                  <X className="w-3 h-3" /> Reject
+                                </button>
+                                <button 
+                                  onClick={() => handleAcceptChange(change.id)}
+                                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${change.status === 'accepted' ? 'bg-green-100 text-green-800 ring-2 ring-green-500' : 'bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-300'}`}
+                                >
+                                  <Check className="w-3 h-3" /> Accept
+                                </button>
+                            </div>
+
                             <button 
                               onClick={() => setSelectedChangeId(null)}
                               className="absolute top-3 right-3 text-slate-300 hover:text-slate-500 dark:hover:text-slate-200 transition-colors"
