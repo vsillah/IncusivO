@@ -12,14 +12,16 @@ const getAiClient = () => {
 
 export const analyzeInclusivity = async (input: FileContent): Promise<InclusivityAnalysis> => {
   const ai = getAiClient();
+  const isTextFile = !input.isBinary;
 
+  // OPTIMIZATION: 
+  // If the input is already text, we DO NOT ask the LLM to echo it back in 'fullText'.
+  // This saves massive amounts of output tokens and reduces latency.
+  // We only ask for fullText if it's a PDF (binary) that needs OCR/Extraction.
+  
   const responseSchema: Schema = {
     type: Type.OBJECT,
     properties: {
-      fullText: { 
-        type: Type.STRING, 
-        description: "The full extracted plain text of the document. If the input is PDF, this must be the complete transcription." 
-      },
       characteristics: {
         type: Type.ARRAY,
         items: { 
@@ -67,12 +69,25 @@ export const analyzeInclusivity = async (input: FileContent): Promise<Inclusivit
         required: ["fontFamily", "fontSize", "lineHeight", "textColor", "backgroundColor", "textAlign", "spacing"]
       }
     },
-    required: ["fullText", "characteristics", "highlights", "systemInstruction", "tone", "visualStyle"],
+    required: ["characteristics", "highlights", "systemInstruction", "tone", "visualStyle"],
   };
+
+  // Only add fullText to schema if we need the LLM to extract it (PDFs)
+  if (!isTextFile) {
+    if (responseSchema.properties) {
+      responseSchema.properties.fullText = { 
+        type: Type.STRING, 
+        description: "The full extracted plain text of the document. If the input is PDF, this must be the complete transcription." 
+      };
+    }
+    if (responseSchema.required) {
+      responseSchema.required.push("fullText");
+    }
+  }
 
   const promptText = `
     Analyze the provided document/text to identify its "Inclusivity DNA" AND its "Visual Layout DNA". 
-    1. Extract the full text (if it's a PDF/Image).
+    1. ${isTextFile ? "Use the provided text below." : "Extract the full text (if it's a PDF/Image)."}
     2. Identify specific linguistic choices, structural patterns, and tonal qualities that make it inclusive.
     3. Analyze the VISUAL LAYOUT (fonts, spacing, density, color feel) and translate that into CSS properties in the 'visualStyle' field.
     4. Find specific snippets in the text that serve as evidence for these characteristics.
@@ -112,6 +127,11 @@ export const analyzeInclusivity = async (input: FileContent): Promise<Inclusivit
     
     const result = JSON.parse(jsonText);
     
+    // Merge the original text back in if we didn't ask the LLM for it
+    if (isTextFile) {
+      result.fullText = input.data;
+    }
+    
     // Add IDs to highlights
     if (result.highlights) {
       result.highlights = result.highlights.map((h: any, i: number) => ({
@@ -135,6 +155,8 @@ export const rewriteContent = async (
 ): Promise<RewriteResult> => {
   const ai = getAiClient();
 
+  // Optimizing rewrite: We still need rewrittenText and originalText returned for the diff view logic,
+  // but we can make the prompt tighter.
   const rewriteSchema: Schema = {
     type: Type.OBJECT,
     properties: {

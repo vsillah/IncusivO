@@ -54,6 +54,9 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   
+  // Cache the last analyzed file object to prevent redundant API calls
+  const lastAnalyzedRef = useRef<FileContent | null>(null);
+  
   // Theme State
   // Initialize from localStorage or system preference
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -129,6 +132,13 @@ const App: React.FC = () => {
       setError("Please provide reference content.");
       return;
     }
+
+    // CACHING CHECK: If we already analyzed this exact file, skip the API call
+    if (docState.analysis && lastAnalyzedRef.current === docState.reference) {
+      setStep(AppStep.REVIEW_ANALYSIS);
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     setStep(AppStep.ANALYZING);
@@ -136,6 +146,8 @@ const App: React.FC = () => {
     try {
       const analysis = await analyzeInclusivity(docState.reference);
       setDocState(prev => ({ ...prev, analysis }));
+      // Update cache
+      lastAnalyzedRef.current = docState.reference;
       setStep(AppStep.REVIEW_ANALYSIS);
     } catch (e: any) {
       setError(e.message || "Something went wrong during analysis.");
@@ -222,6 +234,8 @@ const App: React.FC = () => {
       target: null,
       result: null,
     });
+    // Clear cache on reset
+    lastAnalyzedRef.current = null;
     setError(null);
   };
 
@@ -389,7 +403,12 @@ const App: React.FC = () => {
                             setSelectedChangeId(null);
                           } else {
                             setSelectedConcept(concept.name); 
-                            setSelectedChangeId(null); 
+                            // Auto-select and focus if only 1 instance
+                            if (conceptHighlights.length === 1) {
+                              setSelectedChangeId(conceptHighlights[0].id);
+                            } else {
+                              setSelectedChangeId(null); 
+                            }
                           }
                         }}
                         className={`w-full text-left px-4 py-3 rounded-xl text-sm font-semibold transition-all flex justify-between items-center group border shadow-sm relative z-20
