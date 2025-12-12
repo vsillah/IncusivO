@@ -26,7 +26,8 @@ import {
   X,
   ThumbsUp,
   ThumbsDown,
-  Circle
+  Circle,
+  ClipboardList
 } from 'lucide-react';
 import { AppStep, DocumentState, FileContent, ContentChange, ReferenceHighlight } from './types';
 import { analyzeInclusivity, rewriteContent } from './services/gemini';
@@ -81,6 +82,8 @@ const App: React.FC = () => {
 
   // Ref for the document content to be exported
   const exportContentRef = useRef<HTMLDivElement>(null);
+  // Ref for the comprehensive report content
+  const reportContentRef = useRef<HTMLDivElement>(null);
   // Ref for the content container to help scoping the querySelector
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
@@ -275,6 +278,25 @@ const App: React.FC = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     html2pdf().set(opt).from(exportContentRef.current).save();
+  };
+
+  const handleReportExport = () => {
+    if (!reportContentRef.current) return;
+    // @ts-ignore
+    const html2pdf = window.html2pdf;
+    if (!html2pdf) {
+      setError("PDF generation library not loaded.");
+      return;
+    }
+    const opt = {
+      margin: [10, 10],
+      filename: `inclusivo-comprehensive-report-${Date.now()}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+    html2pdf().set(opt).from(reportContentRef.current).save();
   };
 
   const handleWordExport = () => {
@@ -1047,7 +1069,19 @@ const App: React.FC = () => {
                  </Button>
                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                 {/* Report Export Card */}
+                 <button 
+                    onClick={handleReportExport}
+                    className="flex flex-col items-center p-6 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl hover:border-purple-200 dark:hover:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all group shadow-sm hover:shadow-md"
+                  >
+                    <div className="p-4 bg-purple-100 dark:bg-purple-900/30 rounded-full mb-4 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                      <ClipboardList className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <span className="font-semibold text-slate-900 dark:text-white">Comprehensive Report</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center">Process, stats & audit log</span>
+                 </button>
+
                  {/* PDF Export Card */}
                  <button 
                     onClick={handlePdfExport}
@@ -1057,7 +1091,7 @@ const App: React.FC = () => {
                       <FileBox className="w-8 h-8 text-red-600 dark:text-red-400" />
                     </div>
                     <span className="font-semibold text-slate-900 dark:text-white">Export as PDF</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Ready for print & share</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center">Clean final doc</span>
                  </button>
 
                  {/* Word Export Card */}
@@ -1069,7 +1103,7 @@ const App: React.FC = () => {
                       <FileType className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                     </div>
                     <span className="font-semibold text-slate-900 dark:text-white">Export as Word</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Editable .doc format</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center">Editable .doc format</span>
                  </button>
 
                  {/* Copy Card */}
@@ -1080,8 +1114,8 @@ const App: React.FC = () => {
                     <div className="p-4 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50 transition-colors">
                       {copied ? <Check className="w-8 h-8 text-indigo-600 dark:text-indigo-400" /> : <Copy className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />}
                     </div>
-                    <span className="font-semibold text-slate-900 dark:text-white">{copied ? "Copied!" : "Copy to Clipboard"}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Paste anywhere</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{copied ? "Copied!" : "Copy Text"}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center">Paste anywhere</span>
                  </button>
                </div>
 
@@ -1113,6 +1147,124 @@ const App: React.FC = () => {
                </div>
             </div>
           )}
+
+          {/* Hidden Report Template (Used for PDF Generation) */}
+          <div className="fixed top-0 left-0 w-[210mm] invisible -z-50 pointer-events-none">
+             <div ref={reportContentRef} className="bg-white p-8 text-slate-900 font-sans">
+                {/* Header */}
+                <div className="border-b-2 border-indigo-600 pb-4 mb-8">
+                   <div className="flex justify-between items-end">
+                      <div>
+                        <h1 className="text-3xl font-bold text-slate-900">Transformation Report</h1>
+                        <p className="text-indigo-600 font-medium mt-1">Inclusive Document Analysis & Rewrite</p>
+                      </div>
+                      <div className="text-right text-sm text-slate-500">
+                         <p>Date: {new Date().toLocaleDateString()}</p>
+                         <p>Generated by InclusivO</p>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Section 1: Project Details */}
+                <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                   <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">Project Details</h2>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div>
+                         <span className="block text-xs text-slate-500">Source of Truth (Reference)</span>
+                         <span className="block font-medium text-slate-900">{docState.referenceFileName || "Unknown"}</span>
+                      </div>
+                      <div>
+                         <span className="block text-xs text-slate-500">Target Document</span>
+                         <span className="block font-medium text-slate-900">{docState.targetFileName || "Unknown"}</span>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Section 2: Executive Summary */}
+                <div className="mb-8">
+                   <h2 className="text-xl font-bold text-slate-900 mb-4 border-l-4 border-indigo-500 pl-3">Executive Summary</h2>
+                   <p className="text-slate-700 leading-relaxed bg-white border border-slate-100 p-4 rounded-lg shadow-sm">
+                      {docState.result?.summary}
+                   </p>
+                </div>
+
+                {/* Section 3: The DNA */}
+                <div className="mb-8 page-break-inside-avoid">
+                   <h2 className="text-xl font-bold text-slate-900 mb-4 border-l-4 border-purple-500 pl-3">Inclusivity DNA Components</h2>
+                   <p className="text-sm text-slate-500 mb-4">The following characteristics were extracted from the reference document and applied to the target.</p>
+                   <div className="grid grid-cols-1 gap-3">
+                      {docState.analysis?.characteristics.map((char, i) => (
+                        <div key={i} className="flex items-start p-3 bg-slate-50 rounded-md">
+                           <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold mr-3">
+                              {i + 1}
+                           </div>
+                           <div>
+                              <h3 className="font-bold text-slate-800 text-sm">{char.name}</h3>
+                              <p className="text-xs text-slate-600 mt-1">{char.description}</p>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
+                {/* Section 4: Audit Log */}
+                <div className="mb-8">
+                   <h2 className="text-xl font-bold text-slate-900 mb-4 border-l-4 border-green-500 pl-3">Transformation Audit Log</h2>
+                   <p className="text-sm text-slate-500 mb-4">A breakdown of every instance identified, rewritten, and its final status.</p>
+                   
+                   <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                         <tr className="bg-slate-100 border-b border-slate-200 text-slate-600">
+                            <th className="p-2 font-bold w-1/4">Concept</th>
+                            <th className="p-2 font-bold w-1/4">Original Text</th>
+                            <th className="p-2 font-bold w-1/4">Rewritten / Rationale</th>
+                            <th className="p-2 font-bold w-20">Status</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                         {docState.result?.changes.map((change, i) => (
+                            <tr key={i} className="break-inside-avoid">
+                               <td className="p-2 align-top">
+                                  <span className="inline-block bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-[10px] font-bold border border-slate-200">
+                                     {change.concept}
+                                  </span>
+                               </td>
+                               <td className="p-2 align-top text-slate-600 italic">
+                                  "{change.originalSnippet}"
+                               </td>
+                               <td className="p-2 align-top">
+                                  <div className="font-medium text-slate-900 mb-1">
+                                     "{change.rewrittenSnippet}"
+                                  </div>
+                                  <div className="text-slate-500 text-[10px]">
+                                     {change.explanation}
+                                  </div>
+                               </td>
+                               <td className="p-2 align-top">
+                                  {change.status === 'accepted' && (
+                                     <span className="text-green-700 font-bold bg-green-50 px-2 py-1 rounded flex items-center w-fit">
+                                        Accepted
+                                     </span>
+                                  )}
+                                  {change.status === 'rejected' && (
+                                     <span className="text-red-700 font-bold bg-red-50 px-2 py-1 rounded flex items-center w-fit">
+                                        Rejected
+                                     </span>
+                                  )}
+                                  {change.status === 'pending' && (
+                                     <span className="text-slate-500 font-bold bg-slate-50 px-2 py-1 rounded flex items-center w-fit">
+                                        Pending
+                                     </span>
+                                  )}
+                               </td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+
+             </div>
+          </div>
 
         </div>
       </main>
