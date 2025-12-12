@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check } from 'lucide-react';
+import { AppStep } from '../types';
 
 interface StepIndicatorProps {
   currentStep: number;
@@ -15,16 +16,19 @@ const steps = [
 ];
 
 export const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, isDarkMode }) => {
+  // Hide step indicator on Welcome page
+  if (currentStep === AppStep.WELCOME) return null;
+
   // Map internal app states to visual steps
   let activeStepIndex = 0;
-  if (currentStep >= 6) activeStepIndex = 4;      // Export
-  else if (currentStep >= 5) activeStepIndex = 3; // Result
-  else if (currentStep >= 3) activeStepIndex = 2; // Upload Target
-  else if (currentStep >= 2) activeStepIndex = 1; // Analyze/Review
-  else activeStepIndex = 0;                       // Upload Ref
+  if (currentStep >= AppStep.EXPORT) activeStepIndex = 4;      // Export
+  else if (currentStep >= AppStep.RESULT) activeStepIndex = 3; // Result
+  else if (currentStep >= AppStep.UPLOAD_TARGET) activeStepIndex = 2; // Upload Target
+  else if (currentStep >= AppStep.REVIEW_ANALYSIS) activeStepIndex = 1; // Analyze/Review
+  else activeStepIndex = 0;                       // Upload Ref / Analyzing
 
   return (
-    <nav aria-label="Progress" className="mb-8">
+    <nav aria-label="Progress" className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
       <ol role="list" className="divide-y divide-gray-300 dark:divide-gray-700 rounded-lg border border-gray-300 dark:border-gray-700 md:flex md:divide-y-0 bg-white dark:bg-slate-900 shadow-sm transition-colors duration-300">
         {steps.map((step, stepIdx) => {
           const isComplete = activeStepIndex > stepIdx;

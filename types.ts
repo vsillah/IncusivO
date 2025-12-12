@@ -1,11 +1,12 @@
 export enum AppStep {
-  UPLOAD_REFERENCE = 0,
-  ANALYZING = 1,
-  REVIEW_ANALYSIS = 2,
-  UPLOAD_TARGET = 3,
-  REWRITING = 4,
-  RESULT = 5,
-  EXPORT = 6,
+  WELCOME = 0,
+  UPLOAD_REFERENCE = 1,
+  ANALYZING = 2,
+  REVIEW_ANALYSIS = 3,
+  UPLOAD_TARGET = 4,
+  REWRITING = 5,
+  RESULT = 6,
+  EXPORT = 7,
 }
 
 export interface ReferenceHighlight {

@@ -1,17 +1,17 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { InclusivityAnalysis, FileContent, RewriteResult, ContentChange, CharacteristicDefinition, VisualStyle } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
-const checkApiKey = () => {
+// Helper to safely get the AI client instance
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API Key not found in environment variables.");
   }
+  return new GoogleGenAI({ apiKey });
 };
 
 export const analyzeInclusivity = async (input: FileContent): Promise<InclusivityAnalysis> => {
-  checkApiKey();
+  const ai = getAiClient();
 
   const responseSchema: Schema = {
     type: Type.OBJECT,
@@ -133,7 +133,7 @@ export const rewriteContent = async (
   characteristics: CharacteristicDefinition[],
   referenceStyle?: VisualStyle
 ): Promise<RewriteResult> => {
-  checkApiKey();
+  const ai = getAiClient();
 
   const rewriteSchema: Schema = {
     type: Type.OBJECT,

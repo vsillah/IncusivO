@@ -19,7 +19,10 @@ import {
   ChevronRight,
   Target,
   Moon,
-  Sun
+  Sun,
+  Dna,
+  Fingerprint,
+  PencilRuler
 } from 'lucide-react';
 import { AppStep, DocumentState, FileContent, ContentChange, ReferenceHighlight } from './types';
 import { analyzeInclusivity, rewriteContent } from './services/gemini';
@@ -40,7 +43,7 @@ const CONCEPT_COLORS = [
 ];
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<AppStep>(AppStep.UPLOAD_REFERENCE);
+  const [step, setStep] = useState<AppStep>(AppStep.WELCOME);
   const [docState, setDocState] = useState<DocumentState>({
     reference: null,
     analysis: null,
@@ -52,7 +55,17 @@ const App: React.FC = () => {
   const [copied, setCopied] = useState(false);
   
   // Theme State
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Initialize from localStorage or system preference
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        return savedTheme === 'dark';
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
   
   // Interactivity State
   const [selectedChangeId, setSelectedChangeId] = useState<string | null>(null);
@@ -68,8 +81,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 
@@ -459,7 +474,10 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-10 transition-colors border-b border-transparent dark:border-slate-800">
+      <header className={`
+        bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 transition-colors border-b border-transparent dark:border-slate-800
+        ${step === AppStep.WELCOME ? 'bg-transparent shadow-none border-none absolute w-full' : ''}
+      `}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-2 rounded-lg">
@@ -485,12 +503,12 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
         <StepIndicator currentStep={step} isDarkMode={isDarkMode} />
 
         {/* Error Display */}
         {error && (
-          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-md">
+          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-md animate-in fade-in slide-in-from-top-4">
             <div className="flex">
               <div className="ml-3">
                 <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
@@ -499,7 +517,70 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[600px] flex flex-col transition-colors duration-300">
+        {/* WELCOME STEP */}
+        {step === AppStep.WELCOME && (
+          <div className="flex flex-col items-center justify-center min-h-[80vh] animate-in fade-in duration-700">
+             <div className="text-center max-w-3xl mx-auto mb-16">
+                <div className="inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 px-3 py-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-6">
+                  <Sparkles className="mr-2 h-4 w-4" /> AI-Powered Inclusivity Engine
+                </div>
+                <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-6 leading-tight">
+                   Unlock the <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">DNA</span> of your best content.
+                </h1>
+                <p className="text-xl text-slate-600 dark:text-slate-300 mb-10 leading-relaxed max-w-2xl mx-auto">
+                   Reverse engineer the voice, tone, and visual style of any document and automatically apply it to rewrite new content.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                   <Button size="lg" className="h-14 px-8 text-lg" onClick={() => handleStepChange(AppStep.UPLOAD_REFERENCE)}>
+                      Start Your Journey <ArrowRight className="ml-2 w-5 h-5" />
+                   </Button>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <Fingerprint className="w-24 h-24 text-indigo-600" />
+                   </div>
+                   <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400">
+                      <Dna className="w-6 h-6" />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">1. Extract DNA</h3>
+                   <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Upload a "gold standard" document. We analyze its linguistic patterns, tone, and inclusivity traits to create a unique signature.
+                   </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <Target className="w-24 h-24 text-purple-600" />
+                   </div>
+                   <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center mb-6 text-purple-600 dark:text-purple-400">
+                      <RefreshCw className="w-6 h-6" />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">2. Apply & Transform</h3>
+                   <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      Upload your target content. Our engine rewrites it to match your reference style while preserving the original meaning.
+                   </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-md transition-shadow relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <FileBox className="w-24 h-24 text-green-600" />
+                   </div>
+                   <div className="w-12 h-12 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center mb-6 text-green-600 dark:text-green-400">
+                      <PencilRuler className="w-6 h-6" />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">3. Visual Match</h3>
+                   <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                      It's not just text. We analyze and replicate the visual layout—fonts, spacing, and density—for a truly cohesive result.
+                   </p>
+                </div>
+             </div>
+          </div>
+        )}
+
+        <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[600px] flex flex-col transition-colors duration-300 ${step === AppStep.WELCOME ? 'hidden' : 'block'}`}>
           
           {/* STEP 1: Upload Reference */}
           {step === AppStep.UPLOAD_REFERENCE && (
